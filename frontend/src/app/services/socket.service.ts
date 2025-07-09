@@ -3,38 +3,46 @@ import { io, Socket } from 'socket.io-client';
 import { Observable, BehaviorSubject, Subject } from 'rxjs';
 
 export interface User {
-  id: string;
+  id: number;
   username: string;
   email?: string;
+  displayName: string;
+  avatarUrl?: string;
   isOnline: boolean;
-  joinedAt: string;
-  rooms: string[];
+  lastSeen?: string;
 }
 
 export interface Message {
-  id: string;
-  type: 'private' | 'room' | 'broadcast';
+  id: number;
+  type: 'room' | 'private';
+  content: string;
   sender: {
-    id: string;
+    id: number;
     username: string;
+    displayName: string;
+    avatarUrl?: string;
   };
-  recipient?: string;
-  roomId?: string;
-  message: string;
+  roomId?: number;
+  recipientId?: number;
   timestamp: string;
+  isEdited?: boolean;
 }
 
 export interface Room {
-  id: string;
+  id: number;
   name: string;
-  users: Array<{
-    id: string;
-    username: string;
-    socketId: string;
-    joinedAt: string;
-  }>;
+  description?: string;
+  roomType: 'public' | 'private';
   createdAt: string;
-  messageCount: number;
+  role?: string;
+  memberCount?: number;
+  members?: User[];
+}
+
+export interface AuthResponse {
+  message: string;
+  user: User;
+  token: string;
 }
 
 @Injectable({
@@ -44,22 +52,26 @@ export class SocketService {
   private socket!: Socket;
   private readonly SERVER_URL = 'http://localhost:3000';
   
+  // Authentication state
+  private authToken: string | null = null;
+  private currentUser: User | null = null;
+  
   // Subjects for reactive programming
   private connectedSubject = new BehaviorSubject<boolean>(false);
   private authenticatedSubject = new BehaviorSubject<boolean>(false);
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   private onlineUsersSubject = new BehaviorSubject<User[]>([]);
-  private activeRoomsSubject = new BehaviorSubject<Room[]>([]);
+  private userRoomsSubject = new BehaviorSubject<Room[]>([]);
+  private publicRoomsSubject = new BehaviorSubject<Room[]>([]);
   private messagesSubject = new Subject<Message>();
   private privateMessagesSubject = new Subject<Message>();
   private roomMessagesSubject = new Subject<Message>();
-  private broadcastMessagesSubject = new Subject<Message>();
   private notificationsSubject = new Subject<any>();
   private errorsSubject = new Subject<string>();
   private typingSubject = new Subject<{
-    roomId: string;
-    userId: string;
-    username: string;
+    roomId?: number;
+    userId?: number;
+    user: User;
     isTyping: boolean;
   }>();
 
@@ -68,21 +80,128 @@ export class SocketService {
   public authenticated$ = this.authenticatedSubject.asObservable();
   public currentUser$ = this.currentUserSubject.asObservable();
   public onlineUsers$ = this.onlineUsersSubject.asObservable();
-  public activeRooms$ = this.activeRoomsSubject.asObservable();
+  public userRooms$ = this.userRoomsSubject.asObservable();
+  public publicRooms$ = this.publicRoomsSubject.asObservable();
   public messages$ = this.messagesSubject.asObservable();
   public privateMessages$ = this.privateMessagesSubject.asObservable();
   public roomMessages$ = this.roomMessagesSubject.asObservable();
-  public broadcastMessages$ = this.broadcastMessagesSubject.asObservable();
   public notifications$ = this.notificationsSubject.asObservable();
   public errors$ = this.errorsSubject.asObservable();
   public typing$ = this.typingSubject.asObservable();
 
   constructor() {
+    this.loadAuthFromStorage();
     this.initializeSocket();
   }
 
+  // Authentication methods
+  private loadAuthFromStorage(): void {
+    const token = localStorage.getItem('auth_token');
+    const user = localStorage.getItem('current_user');
+    
+    if (token && user) {
+      this.authToken = token;
+      this.currentUser = JSON.parse(user);
+      this.authenticatedSubject.next(true);
+      this.currentUserSubject.next(this.currentUser);
+    }
+  }
+
+  private saveAuthToStorage(token: string, user: User): void {
+    localStorage.setItem('auth_token', token);
+    localStorage.setItem('current_user', JSON.stringify(user));
+    this.authToken = token;
+    this.currentUser = user;
+    this.authenticatedSubject.next(true);
+    this.currentUserSubject.next(user);
+  }
+
+  private clearAuthFromStorage(): void {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('current_user');
+    this.authToken = null;
+    this.currentUser = null;
+    this.authenticatedSubject.next(false);
+    this.currentUserSubject.next(null);
+  }
+
+  // HTTP authentication methods
+  async register(username: string, email: string, password: string, displayName?: string): Promise<AuthResponse> {
+    try {
+      const response = await fetch(`${this.SERVER_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, email, password, displayName }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Registration failed');
+      }
+
+      this.saveAuthToStorage(data.token, data.user);
+      return data;
+    } catch (error: any) {
+      this.errorsSubject.next(error.message);
+      throw error;
+    }
+  }
+
+  async login(username: string, password: string): Promise<AuthResponse> {
+    try {
+      const response = await fetch(`${this.SERVER_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      this.saveAuthToStorage(data.token, data.user);
+      return data;
+    } catch (error: any) {
+      this.errorsSubject.next(error.message);
+      throw error;
+    }
+  }
+
+  async logout(): Promise<void> {
+    try {
+      if (this.authToken) {
+        await fetch(`${this.SERVER_URL}/api/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.authToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      this.clearAuthFromStorage();
+      this.disconnect();
+    }
+  }
+
   private initializeSocket(): void {
+    if (!this.authToken) {
+      return;
+    }
+
     this.socket = io(this.SERVER_URL, {
+      auth: {
+        token: this.authToken
+      },
       autoConnect: false,
       transports: ['websocket', 'polling']
     });
@@ -91,6 +210,8 @@ export class SocketService {
   }
 
   private setupEventListeners(): void {
+    if (!this.socket) return;
+
     // Connection events
     this.socket.on('connect', () => {
       console.log('🔌 Connected to server');
@@ -100,24 +221,23 @@ export class SocketService {
     this.socket.on('disconnect', (reason) => {
       console.log('🔌 Disconnected from server:', reason);
       this.connectedSubject.next(false);
-      this.authenticatedSubject.next(false);
     });
 
     this.socket.on('connect_error', (error) => {
       console.error('❌ Connection error:', error);
-      this.errorsSubject.next('Connection failed. Please try again.');
+      this.errorsSubject.next('Connection failed. Please check your login.');
+      if (error.message.includes('Authentication')) {
+        this.clearAuthFromStorage();
+      }
     });
 
     // Authentication events
-    this.socket.on('authenticated', (data) => {
-      console.log('✅ Authentication successful:', data);
-      this.authenticatedSubject.next(true);
-      this.currentUserSubject.next(data.user);
-    });
-
-    this.socket.on('authentication_error', (error) => {
-      console.error('❌ Authentication error:', error);
-      this.errorsSubject.next(error.message || 'Authentication failed');
+    this.socket.on('connection_success', (data) => {
+      console.log('✅ Socket connection successful:', data);
+      this.notificationsSubject.next({
+        type: 'success',
+        message: data.message
+      });
     });
 
     // User events
@@ -129,7 +249,7 @@ export class SocketService {
       console.log('👤 User came online:', data);
       this.notificationsSubject.next({
         type: 'user_online',
-        message: `${data.username} is now online`,
+        message: `${data.displayName || data.username} is now online`,
         data
       });
     });
@@ -138,14 +258,27 @@ export class SocketService {
       console.log('👤 User went offline:', data);
       this.notificationsSubject.next({
         type: 'user_offline',
-        message: `${data.username} went offline`,
+        message: `${data.displayName || data.username} went offline`,
         data
       });
     });
 
     // Room events
-    this.socket.on('active_rooms', (rooms) => {
-      this.activeRoomsSubject.next(rooms);
+    this.socket.on('user_rooms', (rooms) => {
+      this.userRoomsSubject.next(rooms);
+    });
+
+    this.socket.on('public_rooms', (rooms) => {
+      this.publicRoomsSubject.next(rooms);
+    });
+
+    this.socket.on('room_created', (data) => {
+      console.log('🏠 Room created:', data);
+      this.notificationsSubject.next({
+        type: 'room_created',
+        message: data.message,
+        data
+      });
     });
 
     this.socket.on('room_joined', (data) => {
@@ -197,12 +330,6 @@ export class SocketService {
       this.roomMessagesSubject.next(message);
     });
 
-    this.socket.on('broadcast_message', (message) => {
-      console.log('📢 Broadcast message received:', message);
-      this.messagesSubject.next(message);
-      this.broadcastMessagesSubject.next(message);
-    });
-
     this.socket.on('message_sent', (data) => {
       console.log('✅ Message sent confirmation:', data);
       this.notificationsSubject.next({
@@ -212,14 +339,26 @@ export class SocketService {
       });
     });
 
+    // Message history events
+    this.socket.on('room_messages', (data) => {
+      console.log('📜 Room messages received:', data);
+      this.notificationsSubject.next({
+        type: 'room_messages',
+        data
+      });
+    });
+
+    this.socket.on('private_messages', (data) => {
+      console.log('📜 Private messages received:', data);
+      this.notificationsSubject.next({
+        type: 'private_messages',
+        data
+      });
+    });
+
     // Typing events
     this.socket.on('user_typing', (data) => {
       this.typingSubject.next(data);
-    });
-
-    // Notification events
-    this.socket.on('notification', (data) => {
-      this.notificationsSubject.next(data);
     });
 
     // Error events
@@ -236,7 +375,10 @@ export class SocketService {
 
   // Connection methods
   connect(): void {
-    if (this.socket) {
+    if (this.authToken && this.socket) {
+      this.socket.connect();
+    } else if (this.authToken) {
+      this.initializeSocket();
       this.socket.connect();
     }
   }
@@ -247,55 +389,62 @@ export class SocketService {
     }
   }
 
-  // Authentication method
-  authenticate(userData: { username: string; email?: string; userId?: string }): void {
-    this.socket.emit('authenticate', userData);
+  // Data retrieval methods
+  getOnlineUsers(): void {
+    this.socket?.emit('get_online_users');
+  }
+
+  getUserRooms(): void {
+    this.socket?.emit('get_user_rooms');
+  }
+
+  getPublicRooms(): void {
+    this.socket?.emit('get_public_rooms');
   }
 
   // Room methods
-  joinRoom(roomId: string, roomName?: string): void {
-    this.socket.emit('join_room', { roomId, roomName });
+  createRoom(name: string, description?: string, roomType: 'public' | 'private' = 'public'): void {
+    this.socket?.emit('create_room', { name, description, roomType });
   }
 
-  leaveRoom(roomId: string): void {
-    this.socket.emit('leave_room', { roomId });
+  joinRoom(roomId: number): void {
+    this.socket?.emit('join_room', { roomId });
   }
 
-  // Get data methods
-  getActiveRooms(): void {
-    this.socket.emit('get_active_rooms');
+  leaveRoom(roomId: number): void {
+    this.socket?.emit('leave_room', { roomId });
   }
 
   // Message methods
-  sendPrivateMessage(recipientId: string, message: string): void {
-    this.socket.emit('private_message', { recipientId, message });
+  sendRoomMessage(roomId: number, content: string): void {
+    this.socket?.emit('send_room_message', { roomId, content });
   }
 
-  sendRoomMessage(roomId: string, message: string): void {
-    this.socket.emit('room_message', { roomId, message });
+  sendPrivateMessage(recipientId: number, content: string): void {
+    this.socket?.emit('send_private_message', { recipientId, content });
   }
 
-  sendBroadcastMessage(message: string, isAdmin: boolean = false): void {
-    this.socket.emit('broadcast_message', { message, isAdmin });
+  // Message history methods
+  getRoomMessages(roomId: number, limit: number = 50, offset: number = 0): void {
+    this.socket?.emit('get_room_messages', { roomId, limit, offset });
+  }
+
+  getPrivateMessages(userId: number, limit: number = 50, offset: number = 0): void {
+    this.socket?.emit('get_private_messages', { userId, limit, offset });
   }
 
   // Typing methods
-  startTyping(roomId: string): void {
-    this.socket.emit('typing_start', { roomId });
+  startTyping(roomId?: number, userId?: number): void {
+    this.socket?.emit('typing_start', { roomId, userId });
   }
 
-  stopTyping(roomId: string): void {
-    this.socket.emit('typing_stop', { roomId });
-  }
-
-  // Utility methods
-  getOnlineUsers(): void {
-    this.socket.emit('get_online_users');
+  stopTyping(roomId?: number, userId?: number): void {
+    this.socket?.emit('typing_stop', { roomId, userId });
   }
 
   // Keep alive
   ping(): void {
-    this.socket.emit('ping');
+    this.socket?.emit('ping');
   }
 
   // Status methods
@@ -309,6 +458,10 @@ export class SocketService {
 
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
+  }
+
+  getAuthToken(): string | null {
+    return this.authToken;
   }
 
   getSocketId(): string | undefined {
@@ -327,11 +480,11 @@ export class SocketService {
     this.authenticatedSubject.complete();
     this.currentUserSubject.complete();
     this.onlineUsersSubject.complete();
-    this.activeRoomsSubject.complete();
+    this.userRoomsSubject.complete();
+    this.publicRoomsSubject.complete();
     this.messagesSubject.complete();
     this.privateMessagesSubject.complete();
     this.roomMessagesSubject.complete();
-    this.broadcastMessagesSubject.complete();
     this.notificationsSubject.complete();
     this.errorsSubject.complete();
     this.typingSubject.complete();

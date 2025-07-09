@@ -2,75 +2,117 @@
   <!-- Notifications -->
   <div class="notifications" *ngIf="notifications.length > 0">
     <div 
-      *ngFor="let notification of notifications; trackBy: trackByNotification"
+      *ngFor="let notification of notifications"
       class="notification"
-      [class.success]="notification.type === 'success'"
-      [class.error]="notification.type === 'error'"
-      [class.info]="notification.type === 'info'"
+      [ngClass]="'notification-' + notification.type"
       (click)="removeNotification(notification.id)"
     >
-      <span class="notification-message">{{ notification.message }}</span>
+      <div class="notification-content">
+        <strong>{{ notification.title }}</strong>
+        <p>{{ notification.message }}</p>
+      </div>
       <button class="close-btn" (click)="removeNotification(notification.id)">×</button>
     </div>
   </div>
 
   <!-- Authentication Form -->
-  <div class="auth-container" *ngIf="!authenticated">
+  <div class="auth-container" *ngIf="!isAuthenticated">
     <div class="auth-form">
-      <h2>🚀 Socket Chat</h2>
-      <p>Enter your details to start chatting</p>
+      <h2>🚀 Socket Chat with JWT</h2>
+      <p>{{ authMode === 'login' ? 'Login to your account' : 'Create a new account' }}</p>
       
-      <form (ngSubmit)="authenticate()">
+      <form [formGroup]="authForm" (ngSubmit)="onAuth()">
         <div class="form-group">
           <label for="username">Username *</label>
           <input 
             type="text" 
             id="username"
-            [(ngModel)]="username" 
-            name="username"
+            formControlName="username"
             placeholder="Enter your username"
-            required
-            [disabled]="isAuthenticating"
+            [class.error]="hasError(authForm, 'username', 'required') || hasError(authForm, 'username', 'minlength')"
+          />
+          <span class="error-message" *ngIf="hasError(authForm, 'username', 'required') || hasError(authForm, 'username', 'minlength')">
+            {{ getError(authForm, 'username') }}
+          </span>
+        </div>
+        
+        <div class="form-group" *ngIf="authMode === 'register'">
+          <label for="email">Email *</label>
+          <input 
+            type="email" 
+            id="email"
+            formControlName="email"
+            placeholder="Enter your email"
+            [class.error]="hasError(authForm, 'email', 'email')"
+          />
+          <span class="error-message" *ngIf="hasError(authForm, 'email', 'email')">
+            {{ getError(authForm, 'email') }}
+          </span>
+        </div>
+
+        <div class="form-group" *ngIf="authMode === 'register'">
+          <label for="displayName">Display Name</label>
+          <input 
+            type="text" 
+            id="displayName"
+            formControlName="displayName"
+            placeholder="Enter your display name"
           />
         </div>
         
         <div class="form-group">
-          <label for="email">Email (optional)</label>
+          <label for="password">Password *</label>
           <input 
-            type="email" 
-            id="email"
-            [(ngModel)]="email" 
-            name="email"
-            placeholder="Enter your email"
-            [disabled]="isAuthenticating"
+            type="password" 
+            id="password"
+            formControlName="password"
+            placeholder="Enter your password"
+            [class.error]="hasError(authForm, 'password', 'required') || hasError(authForm, 'password', 'minlength')"
           />
+          <span class="error-message" *ngIf="hasError(authForm, 'password', 'required') || hasError(authForm, 'password', 'minlength')">
+            {{ getError(authForm, 'password') }}
+          </span>
         </div>
         
+        <div class="auth-error" *ngIf="authError">
+          {{ authError }}
+        </div>
+
         <button 
           type="submit" 
           class="btn btn-primary"
-          [disabled]="!username.trim() || isAuthenticating"
+          [disabled]="authForm.invalid || authLoading"
         >
-          <span *ngIf="isAuthenticating">🔄 Connecting...</span>
-          <span *ngIf="!isAuthenticating">🔌 Connect</span>
+          <span *ngIf="authLoading">🔄 {{ authMode === 'login' ? 'Logging in...' : 'Registering...' }}</span>
+          <span *ngIf="!authLoading">{{ authMode === 'login' ? '🔐 Login' : '📝 Register' }}</span>
+        </button>
+
+        <button 
+          type="button" 
+          class="btn btn-link"
+          (click)="toggleAuthMode()"
+          [disabled]="authLoading"
+        >
+          {{ authMode === 'login' ? "Don't have an account? Register" : 'Already have an account? Login' }}
         </button>
       </form>
       
       <div class="connection-status">
-        <span class="status-indicator" [class.connected]="connected" [class.disconnected]="!connected">
-          {{ connected ? '🟢 Connected' : '🔴 Disconnected' }}
+        <span class="status-indicator" [class.connected]="isConnected" [class.disconnected]="!isConnected">
+          {{ isConnected ? '🟢 Connected' : '🔴 Disconnected' }}
         </span>
       </div>
     </div>
   </div>
 
   <!-- Main Chat Interface -->
-  <div class="chat-interface" *ngIf="authenticated">
+  <div class="chat-interface" *ngIf="isAuthenticated">
     <div class="chat-header">
       <h1>💬 Socket Chat</h1>
       <div class="user-info">
-        <span class="welcome">Welcome, {{ currentUser?.username }}!</span>
+        <span class="welcome">Welcome, {{ currentUser?.displayName || currentUser?.username }}!</span>
         <span class="status-indicator connected">🟢 Online</span>
+        <button class="btn btn-small btn-danger" (click)="onLogout()">Logout</button>
       </div>
     </div>
 
@@ -81,67 +123,91 @@
         <div class="tabs">
           <button 
             class="tab-btn"
-            [class.active]="currentTab === 'public'"
-            (click)="switchTab('public')"
+            [class.active]="selectedTab === 'public'"
+            (click)="selectTab('public')"
           >
-            🌐 Public
+            🌐 Public Rooms
           </button>
           <button 
             class="tab-btn"
-            [class.active]="currentTab === 'private'"
-            (click)="switchTab('private')"
+            [class.active]="selectedTab === 'private'"
+            (click)="selectTab('private')"
           >
-            💬 Private
+            💬 Private Chat
           </button>
           <button 
             class="tab-btn"
-            [class.active]="currentTab === 'rooms'"
-            (click)="switchTab('rooms')"
+            [class.active]="selectedTab === 'rooms'"
+            (click)="selectTab('rooms')"
           >
-            🏠 Rooms
+            🏠 My Rooms
           </button>
         </div>
 
-        <!-- Online Users -->
-        <div class="section" *ngIf="currentTab === 'private' || currentTab === 'public'">
-          <h3>👥 Online Users ({{ onlineUsers.length }})</h3>
+        <!-- Public Rooms Tab -->
+        <div class="section" *ngIf="selectedTab === 'public'">
+          <h3>🌐 Public Rooms ({{ publicRooms.length }})</h3>
+          <div class="rooms-list">
+            <div 
+              *ngFor="let room of publicRooms"
+              class="room-item"
+              [class.active]="activeChat?.type === 'room' && activeChat?.id === room.id"
+              (click)="loadRoomChat(room.id)"
+            >
+              <div class="room-info">
+                <span class="room-name">{{ room.name }}</span>
+                <span class="room-description" *ngIf="room.description">{{ room.description }}</span>
+                <span class="room-members">{{ room.memberCount || 0 }} members</span>
+              </div>
+              <button 
+                class="btn btn-small btn-primary"
+                (click)="joinRoom(room.id); $event.stopPropagation()"
+              >
+                Join
+              </button>
+            </div>
+          </div>
+          <button class="btn btn-primary create-room-btn" (click)="openRoomModal()">+ Create Room</button>
+        </div>
+
+        <!-- Private Chat Tab -->
+        <div class="section" *ngIf="selectedTab === 'private'">
+          <h3>👥 Online Users ({{ privateChatUsers.length }})</h3>
           <div class="users-list">
             <div 
-              *ngFor="let user of onlineUsers; trackBy: trackByUser"
+              *ngFor="let user of privateChatUsers"
               class="user-item"
-              [class.current-user]="user.id === currentUser?.id"
-              (click)="sendPrivateMessage(user.id)"
+              [class.active]="activeChat?.type === 'private' && activeChat?.id === user.id"
+              (click)="loadPrivateChat(user.id)"
             >
-              <div class="user-avatar">{{ user.username.charAt(0).toUpperCase() }}</div>
+              <div class="user-avatar">{{ user.displayName?.charAt(0)?.toUpperCase() || user.username?.charAt(0)?.toUpperCase() }}</div>
               <div class="user-info">
-                <span class="username">{{ user.username }}</span>
-                <span class="status">{{ user.id === currentUser?.id ? '(You)' : 'Online' }}</span>
+                <span class="username">{{ user.displayName || user.username }}</span>
+                <span class="status">Online</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Active Rooms -->
-        <div class="section" *ngIf="currentTab === 'rooms'">
-          <div class="section-header">
-            <h3>🏠 Active Rooms</h3>
-            <button class="btn btn-small" (click)="showRoomModal = true">+ Create</button>
-          </div>
+        <!-- My Rooms Tab -->
+        <div class="section" *ngIf="selectedTab === 'rooms'">
+          <h3>🏠 My Rooms ({{ userRooms.length }})</h3>
           <div class="rooms-list">
             <div 
-              *ngFor="let room of activeRooms; trackBy: trackByRoom"
+              *ngFor="let room of userRooms"
               class="room-item"
-              [class.current-room]="room.id === currentRoom?.id"
-              (click)="joinRoom(room.id, room.name)"
+              [class.active]="activeChat?.type === 'room' && activeChat?.id === room.id"
+              (click)="loadRoomChat(room.id)"
             >
               <div class="room-info">
                 <span class="room-name">{{ room.name }}</span>
-                <span class="room-users">{{ room.users.length }} users</span>
+                <span class="room-description" *ngIf="room.description">{{ room.description }}</span>
+                <span class="room-role" [class.admin]="room.role === 'admin'">{{ room.role }}</span>
               </div>
               <button 
                 class="btn btn-small btn-danger"
                 (click)="leaveRoom(room.id); $event.stopPropagation()"
-                *ngIf="room.id === currentRoom?.id"
+                *ngIf="room.role !== 'admin'"
               >
                 Leave
               </button>
@@ -152,68 +218,78 @@
 
       <!-- Main Chat Area -->
       <div class="main-chat">
-        <div class="chat-header-info">
+        <div class="chat-header-info" *ngIf="activeChat">
           <div class="chat-title">
-            <span *ngIf="currentTab === 'public'">🌐 Public Chat</span>
-            <span *ngIf="currentTab === 'private'">💬 Private Messages</span>
-            <span *ngIf="currentTab === 'rooms' && currentRoom">🏠 {{ currentRoom.name }}</span>
-            <span *ngIf="currentTab === 'rooms' && !currentRoom">🏠 Select a room</span>
+            <span *ngIf="activeChat.type === 'room'">🏠 {{ activeChat.name }}</span>
+            <span *ngIf="activeChat.type === 'private'">💬 {{ activeChat.name }}</span>
           </div>
           <div class="chat-info">
-            <span *ngIf="currentTab === 'public'">Public discussion for everyone</span>
-            <span *ngIf="currentTab === 'private' && privateRecipient">Chatting with {{ getRecipientName(privateRecipient) }}</span>
-            <span *ngIf="currentTab === 'private' && !privateRecipient">Select a user to start private chat</span>
-            <span *ngIf="currentTab === 'rooms' && currentRoom">{{ currentRoom.users.length }} users in this room</span>
+            <span *ngIf="activeChat.type === 'room'">Room Chat</span>
+            <span *ngIf="activeChat.type === 'private'">Private Chat</span>
+            <span *ngIf="activeChat.isLoading"> - Loading messages...</span>
           </div>
         </div>
 
+        <div class="no-chat-selected" *ngIf="!activeChat">
+          <h3>Welcome to Socket Chat!</h3>
+          <p>Select a room or user to start chatting</p>
+        </div>
+
         <!-- Messages Container -->
-        <div class="messages-container" #messagesContainer>
-          <div class="messages-list">
+        <div class="messages-container" #messagesContainer *ngIf="activeChat">
+          <div class="messages-list" *ngIf="!activeChat.isLoading">
             <div 
-              *ngFor="let message of getFilteredMessages(); trackBy: trackByMessage"
+              *ngFor="let message of activeChat.messages"
               class="message"
-              [class.own-message]="message.sender.id === currentUser?.id"
-              [class.broadcast]="message.type === 'broadcast'"
+              [class.own-message]="message.isOwn"
             >
-              <div class="message-avatar">
-                {{ message.sender.username.charAt(0).toUpperCase() }}
+              <div class="message-avatar" *ngIf="!message.isOwn">
+                {{ message.sender.displayName?.charAt(0)?.toUpperCase() || message.sender.username?.charAt(0)?.toUpperCase() }}
               </div>
               <div class="message-content">
-                <div class="message-header">
-                  <span class="username">{{ message.sender.username }}</span>
+                <div class="message-header" *ngIf="!message.isOwn">
+                  <span class="username">{{ message.sender.displayName || message.sender.username }}</span>
                   <span class="timestamp">{{ formatTime(message.timestamp) }}</span>
-                  <span class="message-type" *ngIf="message.type === 'broadcast'">📢</span>
                 </div>
-                <div class="message-text">{{ message.message }}</div>
+                <div class="message-header" *ngIf="message.isOwn">
+                  <span class="timestamp">{{ formatTime(message.timestamp) }}</span>
+                </div>
+                <div class="message-text">{{ message.content }}</div>
+              </div>
+              <div class="message-avatar" *ngIf="message.isOwn">
+                {{ currentUser?.displayName?.charAt(0)?.toUpperCase() || currentUser?.username?.charAt(0)?.toUpperCase() }}
               </div>
             </div>
           </div>
 
+          <div class="loading-messages" *ngIf="activeChat.isLoading">
+            <p>Loading messages...</p>
+          </div>
+
           <!-- Typing Indicator -->
-          <div class="typing-indicator" *ngIf="getCurrentTypingUsers()">
-            <span class="typing-text">{{ getCurrentTypingUsers() }}</span>
+          <div class="typing-indicator" *ngIf="getTypingText()">
+            <span class="typing-text">{{ getTypingText() }}</span>
           </div>
         </div>
 
         <!-- Message Input -->
-        <div class="message-input-container">
+        <div class="message-input-container" *ngIf="activeChat">
           <div class="message-input">
             <input 
-              type="text"
+              type="text" 
               #messageInput
               [(ngModel)]="messageText"
-              (keypress)="onKeyPress($event)"
-              (input)="onTyping()"
+              (keypress)="$event.key === 'Enter' && sendMessage()"
+              (input)="onMessageInput()"
               placeholder="Type your message..."
-              [disabled]="!authenticated || (currentTab === 'private' && !privateRecipient) || (currentTab === 'rooms' && !currentRoom)"
+              [disabled]="!isAuthenticated || activeChat.isLoading"
             />
             <button 
               class="btn btn-primary send-btn"
               (click)="sendMessage()"
-              [disabled]="!messageText.trim() || !authenticated || (currentTab === 'private' && !privateRecipient) || (currentTab === 'rooms' && !currentRoom)"
+              [disabled]="!messageText.trim() || !isAuthenticated || activeChat.isLoading"
             >
-              📤 Send
+              Send
             </button>
           </div>
         </div>
@@ -222,28 +298,63 @@
   </div>
 
   <!-- Room Creation Modal -->
-  <div class="modal-overlay" *ngIf="showRoomModal" (click)="showRoomModal = false">
+  <div class="modal-overlay" *ngIf="showRoomModal" (click)="closeRoomModal()">
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h3>🏠 Create New Room</h3>
-        <button class="close-btn" (click)="showRoomModal = false">×</button>
+        <h3>Create New Room</h3>
+        <button class="close-btn" (click)="closeRoomModal()">×</button>
       </div>
-      <div class="modal-content">
-        <form (ngSubmit)="createRoom()">
+      <div class="modal-body">
+        <form [formGroup]="roomForm" (ngSubmit)="createRoom()">
           <div class="form-group">
-            <label for="roomName">Room Name</label>
+            <label for="roomName">Room Name *</label>
             <input 
               type="text" 
               id="roomName"
-              [(ngModel)]="newRoomName"
-              name="roomName"
+              formControlName="name"
               placeholder="Enter room name"
-              required
+              [class.error]="hasError(roomForm, 'name', 'required') || hasError(roomForm, 'name', 'minlength')"
             />
+            <span class="error-message" *ngIf="hasError(roomForm, 'name', 'required') || hasError(roomForm, 'name', 'minlength')">
+              {{ getError(roomForm, 'name') }}
+            </span>
           </div>
+          
+          <div class="form-group">
+            <label for="roomDescription">Description</label>
+            <textarea 
+              id="roomDescription"
+              formControlName="description"
+              placeholder="Enter room description (optional)"
+              rows="3"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="roomType">Room Type</label>
+            <select id="roomType" formControlName="roomType">
+              <option value="public">Public</option>
+              <option value="private">Private</option>
+            </select>
+          </div>
+
           <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" (click)="showRoomModal = false">Cancel</button>
-            <button type="submit" class="btn btn-primary" [disabled]="!newRoomName.trim()">Create Room</button>
+            <button 
+              type="button" 
+              class="btn btn-secondary" 
+              (click)="closeRoomModal()"
+              [disabled]="roomModalLoading"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              class="btn btn-primary"
+              [disabled]="roomForm.invalid || roomModalLoading"
+            >
+              <span *ngIf="roomModalLoading">Creating...</span>
+              <span *ngIf="!roomModalLoading">Create Room</span>
+            </button>
           </div>
         </form>
       </div>
