@@ -1,0 +1,252 @@
+<div class="chat-container">
+  <!-- Notifications -->
+  <div class="notifications" *ngIf="notifications.length > 0">
+    <div 
+      *ngFor="let notification of notifications; trackBy: trackByNotification"
+      class="notification"
+      [class.success]="notification.type === 'success'"
+      [class.error]="notification.type === 'error'"
+      [class.info]="notification.type === 'info'"
+      (click)="removeNotification(notification.id)"
+    >
+      <span class="notification-message">{{ notification.message }}</span>
+      <button class="close-btn" (click)="removeNotification(notification.id)">×</button>
+    </div>
+  </div>
+
+  <!-- Authentication Form -->
+  <div class="auth-container" *ngIf="!authenticated">
+    <div class="auth-form">
+      <h2>🚀 Socket Chat</h2>
+      <p>Enter your details to start chatting</p>
+      
+      <form (ngSubmit)="authenticate()">
+        <div class="form-group">
+          <label for="username">Username *</label>
+          <input 
+            type="text" 
+            id="username"
+            [(ngModel)]="username" 
+            name="username"
+            placeholder="Enter your username"
+            required
+            [disabled]="isAuthenticating"
+          />
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email (optional)</label>
+          <input 
+            type="email" 
+            id="email"
+            [(ngModel)]="email" 
+            name="email"
+            placeholder="Enter your email"
+            [disabled]="isAuthenticating"
+          />
+        </div>
+        
+        <button 
+          type="submit" 
+          class="btn btn-primary"
+          [disabled]="!username.trim() || isAuthenticating"
+        >
+          <span *ngIf="isAuthenticating">🔄 Connecting...</span>
+          <span *ngIf="!isAuthenticating">🔌 Connect</span>
+        </button>
+      </form>
+      
+      <div class="connection-status">
+        <span class="status-indicator" [class.connected]="connected" [class.disconnected]="!connected">
+          {{ connected ? '🟢 Connected' : '🔴 Disconnected' }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Chat Interface -->
+  <div class="chat-interface" *ngIf="authenticated">
+    <div class="chat-header">
+      <h1>💬 Socket Chat</h1>
+      <div class="user-info">
+        <span class="welcome">Welcome, {{ currentUser?.username }}!</span>
+        <span class="status-indicator connected">🟢 Online</span>
+      </div>
+    </div>
+
+    <div class="chat-content">
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <!-- Tabs -->
+        <div class="tabs">
+          <button 
+            class="tab-btn"
+            [class.active]="currentTab === 'public'"
+            (click)="switchTab('public')"
+          >
+            🌐 Public
+          </button>
+          <button 
+            class="tab-btn"
+            [class.active]="currentTab === 'private'"
+            (click)="switchTab('private')"
+          >
+            💬 Private
+          </button>
+          <button 
+            class="tab-btn"
+            [class.active]="currentTab === 'rooms'"
+            (click)="switchTab('rooms')"
+          >
+            🏠 Rooms
+          </button>
+        </div>
+
+        <!-- Online Users -->
+        <div class="section" *ngIf="currentTab === 'private' || currentTab === 'public'">
+          <h3>👥 Online Users ({{ onlineUsers.length }})</h3>
+          <div class="users-list">
+            <div 
+              *ngFor="let user of onlineUsers; trackBy: trackByUser"
+              class="user-item"
+              [class.current-user]="user.id === currentUser?.id"
+              (click)="sendPrivateMessage(user.id)"
+            >
+              <div class="user-avatar">{{ user.username.charAt(0).toUpperCase() }}</div>
+              <div class="user-info">
+                <span class="username">{{ user.username }}</span>
+                <span class="status">{{ user.id === currentUser?.id ? '(You)' : 'Online' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Rooms -->
+        <div class="section" *ngIf="currentTab === 'rooms'">
+          <div class="section-header">
+            <h3>🏠 Active Rooms</h3>
+            <button class="btn btn-small" (click)="showRoomModal = true">+ Create</button>
+          </div>
+          <div class="rooms-list">
+            <div 
+              *ngFor="let room of activeRooms; trackBy: trackByRoom"
+              class="room-item"
+              [class.current-room]="room.id === currentRoom?.id"
+              (click)="joinRoom(room.id, room.name)"
+            >
+              <div class="room-info">
+                <span class="room-name">{{ room.name }}</span>
+                <span class="room-users">{{ room.users.length }} users</span>
+              </div>
+              <button 
+                class="btn btn-small btn-danger"
+                (click)="leaveRoom(room.id); $event.stopPropagation()"
+                *ngIf="room.id === currentRoom?.id"
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Chat Area -->
+      <div class="main-chat">
+        <div class="chat-header-info">
+          <div class="chat-title">
+            <span *ngIf="currentTab === 'public'">🌐 Public Chat</span>
+            <span *ngIf="currentTab === 'private'">💬 Private Messages</span>
+            <span *ngIf="currentTab === 'rooms' && currentRoom">🏠 {{ currentRoom.name }}</span>
+            <span *ngIf="currentTab === 'rooms' && !currentRoom">🏠 Select a room</span>
+          </div>
+          <div class="chat-info">
+            <span *ngIf="currentTab === 'public'">Public discussion for everyone</span>
+            <span *ngIf="currentTab === 'private' && privateRecipient">Chatting with {{ getRecipientName(privateRecipient) }}</span>
+            <span *ngIf="currentTab === 'private' && !privateRecipient">Select a user to start private chat</span>
+            <span *ngIf="currentTab === 'rooms' && currentRoom">{{ currentRoom.users.length }} users in this room</span>
+          </div>
+        </div>
+
+        <!-- Messages Container -->
+        <div class="messages-container" #messagesContainer>
+          <div class="messages-list">
+            <div 
+              *ngFor="let message of getFilteredMessages(); trackBy: trackByMessage"
+              class="message"
+              [class.own-message]="message.sender.id === currentUser?.id"
+              [class.broadcast]="message.type === 'broadcast'"
+            >
+              <div class="message-avatar">
+                {{ message.sender.username.charAt(0).toUpperCase() }}
+              </div>
+              <div class="message-content">
+                <div class="message-header">
+                  <span class="username">{{ message.sender.username }}</span>
+                  <span class="timestamp">{{ formatTime(message.timestamp) }}</span>
+                  <span class="message-type" *ngIf="message.type === 'broadcast'">📢</span>
+                </div>
+                <div class="message-text">{{ message.message }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Typing Indicator -->
+          <div class="typing-indicator" *ngIf="getCurrentTypingUsers()">
+            <span class="typing-text">{{ getCurrentTypingUsers() }}</span>
+          </div>
+        </div>
+
+        <!-- Message Input -->
+        <div class="message-input-container">
+          <div class="message-input">
+            <input 
+              type="text"
+              #messageInput
+              [(ngModel)]="messageText"
+              (keypress)="onKeyPress($event)"
+              (input)="onTyping()"
+              placeholder="Type your message..."
+              [disabled]="!authenticated || (currentTab === 'private' && !privateRecipient) || (currentTab === 'rooms' && !currentRoom)"
+            />
+            <button 
+              class="btn btn-primary send-btn"
+              (click)="sendMessage()"
+              [disabled]="!messageText.trim() || !authenticated || (currentTab === 'private' && !privateRecipient) || (currentTab === 'rooms' && !currentRoom)"
+            >
+              📤 Send
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Room Creation Modal -->
+  <div class="modal-overlay" *ngIf="showRoomModal" (click)="showRoomModal = false">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>🏠 Create New Room</h3>
+        <button class="close-btn" (click)="showRoomModal = false">×</button>
+      </div>
+      <div class="modal-content">
+        <form (ngSubmit)="createRoom()">
+          <div class="form-group">
+            <label for="roomName">Room Name</label>
+            <input 
+              type="text" 
+              id="roomName"
+              [(ngModel)]="newRoomName"
+              name="roomName"
+              placeholder="Enter room name"
+              required
+            />
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="showRoomModal = false">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="!newRoomName.trim()">Create Room</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
