@@ -458,3 +458,6 @@
 {"level":"info","message":"Socket authenticated for user: demo2@yopmail.com","timestamp":"2025-07-10 19:04:01:41"}
 {"level":"info","message":"User connected: _IzeXtauz2wyt62SAAAZ","timestamp":"2025-07-10 19:04:01:41"}
 {"level":"info","message":"New database client connected","timestamp":"2025-07-10 19:08:36:836"}
+{"level":"info","message":"New database client connected","timestamp":"2025-07-10 19:09:11:911"}
+{"level":"info","message":"User registered successfully: test2@example.com","timestamp":"2025-07-10 19:10:01:101"}
+{"level":"info","message":"User logged in successfully: test2@example.com","timestamp":"2025-07-10 19:10:12:1012"}
