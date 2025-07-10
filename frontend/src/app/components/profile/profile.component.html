@@ -1,0 +1,111 @@
+<div class="profile-container">
+  <div class="profile-header">
+    <div class="header-content">
+      <h1 class="page-title">My Profile</h1>
+      <a routerLink="/home" class="back-link">← Back to Home</a>
+    </div>
+  </div>
+
+  <div class="profile-content">
+    <div class="profile-card">
+      <!-- Profile Avatar Section -->
+      <div class="avatar-section">
+        <div class="avatar-circle">
+          <span class="avatar-initial">{{ getInitials(currentUser?.displayName || currentUser?.username || '') }}</span>
+        </div>
+        <div class="avatar-info">
+          <h2 class="user-name">{{ currentUser?.displayName || currentUser?.username }}</h2>
+          <p class="user-email">{{ currentUser?.email }}</p>
+          <span class="user-status online">Online</span>
+        </div>
+      </div>
+
+      <!-- Profile Form Section -->
+      <div class="form-section">
+        <div class="section-header">
+          <h3>Profile Information</h3>
+          <button 
+            type="button" 
+            class="edit-btn"
+            (click)="toggleEdit()"
+            [disabled]="isLoading"
+          >
+            {{ isEditing ? 'Cancel' : 'Edit' }}
+          </button>
+        </div>
+
+        <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="profile-form">
+          <!-- Username Field -->
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input 
+              type="text" 
+              id="username" 
+              formControlName="username"
+              [class.error]="hasError('username', 'required') || hasError('username', 'minlength')"
+              [disabled]="!isEditing"
+              placeholder="Enter your username"
+            />
+            <div class="error-message" *ngIf="hasError('username', 'required') || hasError('username', 'minlength')">
+              {{ getError('username') }}
+            </div>
+          </div>
+
+          <!-- Email Field -->
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input 
+              type="email" 
+              id="email" 
+              formControlName="email"
+              [class.error]="hasError('email', 'required') || hasError('email', 'email')"
+              [disabled]="!isEditing"
+              placeholder="Enter your email"
+            />
+            <div class="error-message" *ngIf="hasError('email', 'required') || hasError('email', 'email')">
+              {{ getError('email') }}
+            </div>
+          </div>
+
+          <!-- Display Name Field -->
+          <div class="form-group">
+            <label for="displayName">Display Name</label>
+            <input 
+              type="text" 
+              id="displayName" 
+              formControlName="displayName"
+              [disabled]="!isEditing"
+              placeholder="Enter your display name (optional)"
+            />
+          </div>
+
+          <!-- Save Button -->
+          <button 
+            type="submit" 
+            class="save-btn"
+            *ngIf="isEditing"
+            [class.loading]="isLoading"
+            [disabled]="isLoading || profileForm.invalid"
+          >
+            <span *ngIf="!isLoading">Save Changes</span>
+            <span *ngIf="isLoading">
+              <i class="loading-spinner"></i>
+              Saving...
+            </span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Account Actions -->
+      <div class="actions-section">
+        <h3>Account Actions</h3>
+        <div class="action-buttons">
+          <button class="action-btn danger" (click)="logout()">
+            <i class="icon">🚪</i>
+            Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 

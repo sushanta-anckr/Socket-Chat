@@ -50,7 +50,7 @@ export interface AuthResponse {
 })
 export class SocketService {
   private socket!: Socket;
-  private readonly SERVER_URL = 'http://localhost:3000';
+  private readonly SERVER_URL = 'http://localhost:3001';
   
   // Authentication state
   private authToken: string | null = null;
@@ -128,7 +128,7 @@ export class SocketService {
   // HTTP authentication methods
   async register(username: string, email: string, password: string, displayName?: string): Promise<AuthResponse> {
     try {
-      const response = await fetch(`${this.SERVER_URL}/api/auth/register`, {
+      const response = await fetch(`${this.SERVER_URL}/api/v1/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -139,11 +139,19 @@ export class SocketService {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
+        throw new Error(data.message || 'Registration failed');
       }
 
-      this.saveAuthToStorage(data.token, data.user);
-      return data;
+      // Backend returns: { success: true, message: "...", data: { user: {...}, token: "..." } }
+      // Frontend expects: { message: "...", user: {...}, token: "..." }
+      const authResponse = {
+        message: data.message,
+        user: data.data.user,
+        token: data.data.token
+      };
+
+      this.saveAuthToStorage(authResponse.token, authResponse.user);
+      return authResponse;
     } catch (error: any) {
       this.errorsSubject.next(error.message);
       throw error;
@@ -152,22 +160,30 @@ export class SocketService {
 
   async login(username: string, password: string): Promise<AuthResponse> {
     try {
-      const response = await fetch(`${this.SERVER_URL}/api/auth/login`, {
+      const response = await fetch(`${this.SERVER_URL}/api/v1/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email: username, password }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error(data.message || 'Login failed');
       }
 
-      this.saveAuthToStorage(data.token, data.user);
-      return data;
+      // Backend returns: { success: true, message: "...", data: { user: {...}, token: "..." } }
+      // Frontend expects: { message: "...", user: {...}, token: "..." }
+      const authResponse = {
+        message: data.message,
+        user: data.data.user,
+        token: data.data.token
+      };
+
+      this.saveAuthToStorage(authResponse.token, authResponse.user);
+      return authResponse;
     } catch (error: any) {
       this.errorsSubject.next(error.message);
       throw error;
@@ -177,7 +193,7 @@ export class SocketService {
   async logout(): Promise<void> {
     try {
       if (this.authToken) {
-        await fetch(`${this.SERVER_URL}/api/auth/logout`, {
+        await fetch(`${this.SERVER_URL}/api/v1/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${this.authToken}`,
@@ -356,6 +372,45 @@ export class SocketService {
       });
     });
 
+    // New event listeners for updated functionality
+    this.socket.on('general_messages', (data) => {
+      console.log('📜 General messages received:', data);
+      this.notificationsSubject.next({
+        type: 'general_messages',
+        data
+      });
+    });
+
+    this.socket.on('general_message', (message) => {
+      console.log('💬 General message received:', message);
+      this.messagesSubject.next(message);
+    });
+
+    this.socket.on('chat_history', (data) => {
+      console.log('📜 Chat history received:', data);
+      this.notificationsSubject.next({
+        type: 'chat_history',
+        data
+      });
+    });
+
+    this.socket.on('search_results', (data) => {
+      console.log('🔍 Search results received:', data);
+      this.notificationsSubject.next({
+        type: 'search_results',
+        data
+      });
+    });
+
+    this.socket.on('user_invited', (data) => {
+      console.log('👥 User invited to room:', data);
+      this.notificationsSubject.next({
+        type: 'user_invited',
+        message: data.message,
+        data
+      });
+    });
+
     // Typing events
     this.socket.on('user_typing', (data) => {
       this.typingSubject.next(data);
@@ -390,10 +445,68 @@ export class SocketService {
   }
 
   // Data retrieval methods
+  // Get online users via REST API
+  async getOnlineUsersRest(): Promise<User[]> {
+    try {
+      const response = await fetch(`${this.SERVER_URL}/api/v1/users/online`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to get online users');
+      }
+
+      // Update the subject with the new data
+      const users = data.data || [];
+      this.onlineUsersSubject.next(users);
+      return users;
+    } catch (error: any) {
+      console.error('Get online users error:', error);
+      this.errorsSubject.next(error.message);
+      return [];
+    }
+  }
+
+  // Legacy socket method for backward compatibility
   getOnlineUsers(): void {
     this.socket?.emit('get_online_users');
   }
 
+  // Get user chats via REST API
+  async getUserChatsRest(): Promise<Room[]> {
+    try {
+      const response = await fetch(`${this.SERVER_URL}/api/v1/chats`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to get user chats');
+      }
+
+      // Update the subject with the new data
+      const chats = data.data || [];
+      this.userRoomsSubject.next(chats);
+      return chats;
+    } catch (error: any) {
+      console.error('Get user chats error:', error);
+      this.errorsSubject.next(error.message);
+      return [];
+    }
+  }
+
+  // Legacy socket method for backward compatibility
   getUserRooms(): void {
     this.socket?.emit('get_user_rooms');
   }
@@ -433,6 +546,54 @@ export class SocketService {
     this.socket?.emit('get_private_messages', { userId, limit, offset });
   }
 
+  // New methods for updated functionality
+  getGeneralMessages(limit: number = 50, offset: number = 0): void {
+    this.socket?.emit('get_general_messages', { limit, offset });
+  }
+
+  sendGeneralMessage(content: string): void {
+    this.socket?.emit('send_general_message', { content });
+  }
+
+  getChatHistory(): void {
+    this.socket?.emit('get_chat_history');
+  }
+
+  // Search users via REST API
+  async searchUsers(query: string): Promise<User[]> {
+    try {
+      const response = await fetch(`${this.SERVER_URL}/api/v1/users/search?q=${encodeURIComponent(query)}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Search failed');
+      }
+
+      // Return the search results
+      return data.data || [];
+    } catch (error: any) {
+      console.error('Search error:', error);
+      this.errorsSubject.next(error.message);
+      return [];
+    }
+  }
+
+  // Legacy socket method for backward compatibility
+  searchUsersSocket(query: string): void {
+    this.socket?.emit('search_users', { query });
+  }
+
+  inviteToRoom(roomId: number, userId: number): void {
+    this.socket?.emit('invite_to_room', { roomId, userId });
+  }
+
   // Typing methods
   startTyping(roomId?: number, userId?: number): void {
     this.socket?.emit('typing_start', { roomId, userId });
@@ -468,6 +629,27 @@ export class SocketService {
     return this.socket?.id;
   }
 
+  // Add these methods after the existing public methods but before the private methods
+  
+  // Public methods to expose socket.on and socket.emit
+  public on(event: string, callback: (data: any) => void): void {
+    if (this.socket) {
+      this.socket.on(event, callback);
+    }
+  }
+
+  public emit(event: string, data?: any): void {
+    if (this.socket) {
+      this.socket.emit(event, data);
+    }
+  }
+
+  public off(event: string, callback?: (data: any) => void): void {
+    if (this.socket) {
+      this.socket.off(event, callback);
+    }
+  }
+
   // Cleanup
   destroy(): void {
     if (this.socket) {
@@ -488,5 +670,31 @@ export class SocketService {
     this.notificationsSubject.complete();
     this.errorsSubject.complete();
     this.typingSubject.complete();
+  }
+
+  // Get chat messages via REST API
+  async getChatMessagesRest(chatId: number, limit: number = 50, offset: number = 0): Promise<Message[]> {
+    try {
+      const response = await fetch(`${this.SERVER_URL}/api/v1/chats/${chatId}/messages?limit=${limit}&offset=${offset}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to get chat messages');
+      }
+
+      // Return the messages
+      return data.data || [];
+    } catch (error: any) {
+      console.error('Get chat messages error:', error);
+      this.errorsSubject.next(error.message);
+      return [];
+    }
   }
 }

@@ -1,0 +1,98 @@
+<div class="private-chat">
+  <!-- Chat Header -->
+  <div class="chat-header">
+    <h3>🔒 Private Messages</h3>
+    <p>Send private messages to other users.</p>
+  </div>
+
+  <!-- User Search (when no user selected) -->
+  <div class="search-section" *ngIf="!selectedUser">
+    <div class="search-container">
+      <input 
+        type="text" 
+        [(ngModel)]="searchQuery"
+        (input)="searchUsers()"
+        placeholder="Search users..."
+        class="search-input"
+      />
+    </div>
+    
+    <!-- Search Results -->
+    <div class="search-results" *ngIf="searchResults.length > 0">
+      <div class="search-result" *ngFor="let user of searchResults" (click)="selectUser(user)">
+        <div class="user-avatar">
+          <span class="avatar-initial">{{ getInitials(user.username) }}</span>
+        </div>
+        <div class="user-info">
+          <span class="user-name">{{ user.displayName || user.username }}</span>
+          <span class="user-status">Online</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- No results -->
+    <div class="no-results" *ngIf="searchQuery && searchResults.length === 0 && !isSearching">
+      <p>No users found</p>
+    </div>
+
+    <!-- Loading -->
+    <div class="search-loading" *ngIf="isSearching">
+      <div class="spinner"></div>
+      <p>Searching...</p>
+    </div>
+  </div>
+
+  <!-- Private Chat Interface (when user selected) -->
+  <div class="private-chat-interface" *ngIf="selectedUser">
+    <!-- Chat Header -->
+    <div class="private-header">
+      <button class="back-button" (click)="goBack()">← Back</button>
+      <div class="user-info">
+        <div class="user-avatar">
+          <span class="avatar-initial">{{ getInitials(selectedUser.username) }}</span>
+        </div>
+        <div class="user-details">
+          <h4>{{ selectedUser.displayName || selectedUser.username }}</h4>
+          <span class="user-status">Online</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Private Messages -->
+    <div class="messages-container">
+      <div class="message-wrapper" *ngFor="let message of messages">
+        <div class="message" [class.own]="message.isOwn">
+          <div class="message-content">
+            <div class="message-text">{{ message.content }}</div>
+            <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- No messages -->
+      <div class="no-messages" *ngIf="messages.length === 0">
+        <p>No messages yet. Start a conversation!</p>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+      <div class="input-container">
+        <input 
+          type="text" 
+          [(ngModel)]="messageInput"
+          (keyup.enter)="sendMessage()"
+          placeholder="Type private message..."
+          class="message-input"
+        />
+        <button 
+          (click)="sendMessage()"
+          class="send-button"
+          [disabled]="!messageInput.trim()"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  </div>
+</div> 

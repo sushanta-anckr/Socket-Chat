@@ -1,0 +1,128 @@
+<div class="friends">
+  <!-- Chat Header -->
+  <div class="chat-header">
+    <h3>👥 Friends</h3>
+    <p>Manage your friend connections.</p>
+  </div>
+
+  <!-- Friend Tabs -->
+  <div class="friend-tabs">
+    <button 
+      class="tab-button" 
+      [class.active]="selectedTab === 'friends'"
+      (click)="switchTab('friends')"
+    >
+      Friends ({{ friends.length }})
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="selectedTab === 'requests'"
+      (click)="switchTab('requests')"
+    >
+      Requests ({{ friendRequests.length }})
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="selectedTab === 'add'"
+      (click)="switchTab('add')"
+    >
+      Add Friends
+    </button>
+  </div>
+
+  <!-- Friends List -->
+  <div class="friends-section" *ngIf="selectedTab === 'friends'">
+    <div class="friends-list" *ngIf="friends.length > 0">
+      <div class="friend-item" *ngFor="let friend of friends">
+        <div class="user-avatar">
+          <span class="avatar-initial">{{ getInitials(friend.username) }}</span>
+          <div class="status-dot" [class.online]="friend.isOnline"></div>
+        </div>
+        <div class="friend-info">
+          <h4>{{ friend.displayName || friend.username }}</h4>
+          <p>{{ friend.isOnline ? 'Online' : 'Offline' }}</p>
+        </div>
+        <div class="friend-actions">
+          <button class="action-button message" title="Send Message">💬</button>
+          <button class="action-button remove" (click)="removeFriend(friend)" title="Remove Friend">🗑️</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="no-friends" *ngIf="friends.length === 0">
+      <h4>No friends yet</h4>
+      <p>Add some friends to start chatting!</p>
+    </div>
+  </div>
+
+  <!-- Friend Requests -->
+  <div class="requests-section" *ngIf="selectedTab === 'requests'">
+    <div class="requests-list" *ngIf="friendRequests.length > 0">
+      <div class="request-item" *ngFor="let request of friendRequests">
+        <div class="user-avatar">
+          <span class="avatar-initial">{{ getInitials(request.sender.username) }}</span>
+        </div>
+        <div class="request-info">
+          <h4>{{ request.sender.displayName || request.sender.username }}</h4>
+          <p>Sent {{ formatTime(request.timestamp) }}</p>
+        </div>
+        <div class="request-actions">
+          <button class="action-button accept" (click)="acceptFriendRequest(request)">Accept</button>
+          <button class="action-button decline" (click)="declineFriendRequest(request)">Decline</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="no-requests" *ngIf="friendRequests.length === 0">
+      <h4>No friend requests</h4>
+      <p>You have no pending friend requests.</p>
+    </div>
+  </div>
+
+  <!-- Add Friends -->
+  <div class="add-friends-section" *ngIf="selectedTab === 'add'">
+    <div class="search-container">
+      <input 
+        type="text" 
+        [(ngModel)]="searchQuery"
+        (input)="searchUsers()"
+        placeholder="Search users to add as friends..."
+        class="search-input"
+      />
+    </div>
+    
+    <!-- Search Results -->
+    <div class="search-results" *ngIf="searchResults.length > 0">
+      <div class="search-result" *ngFor="let user of searchResults">
+        <div class="user-avatar">
+          <span class="avatar-initial">{{ getInitials(user.username) }}</span>
+        </div>
+        <div class="user-info">
+          <h4>{{ user.displayName || user.username }}</h4>
+          <p>Online</p>
+        </div>
+        <div class="user-actions">
+          <button class="action-button add" (click)="sendFriendRequest(user)">Add Friend</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- No results -->
+    <div class="no-results" *ngIf="searchQuery && searchResults.length === 0 && !isSearching">
+      <h4>No users found</h4>
+      <p>Try a different search term.</p>
+    </div>
+
+    <!-- Loading -->
+    <div class="search-loading" *ngIf="isSearching">
+      <div class="spinner"></div>
+      <p>Searching...</p>
+    </div>
+
+    <!-- Help text -->
+    <div class="help-text" *ngIf="!searchQuery">
+      <h4>Add Friends</h4>
+      <p>Search for users by their username or display name to send friend requests.</p>
+    </div>
+  </div>
+</div> 

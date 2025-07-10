@@ -1,352 +1,259 @@
-# 🚀 Socket Chat Application
+# 💬 Professional Chat Application
 
-A modern, real-time chat application built with Node.js/Express backend and Angular 18+ frontend, featuring Socket.IO for real-time communication and Redis for pub/sub messaging.
+A modern, real-time chat application built with Angular 18 and Node.js/Express with Socket.IO integration.
 
-## 🏗️ Project Structure
+## 🏗️ Architecture Overview
+
+### **Frontend (Angular 18)**
+- **Standalone Components**: Modern Angular architecture with standalone components
+- **Proper Routing**: Separated pages for authentication, home, chat, and profile
+- **Service-Oriented**: Dedicated services for authentication, socket communication, and notifications
+- **TypeScript**: Full type safety throughout the application
+- **Responsive Design**: Modern UI with SCSS styling
+
+### **Backend (Node.js/Express)**
+- **TypeScript**: Full TypeScript implementation
+- **JWT Authentication**: Secure token-based authentication
+- **Socket.IO**: Real-time communication
+- **PostgreSQL**: Robust database with proper schema
+- **RESTful API**: Clean API endpoints for data operations
+
+## 📁 Project Structure
 
 ```
 Project/
-├── backend/                 # Node.js + Express + Socket.IO + Redis
+├── frontend/                    # Angular 18 Frontend
+│   ├── src/app/
+│   │   ├── components/
+│   │   │   ├── auth/           # Authentication (Login/Register)
+│   │   │   ├── home/           # Landing page after login
+│   │   │   ├── chat/           # Main chat interface
+│   │   │   ├── profile/        # User profile management
+│   │   │   └── toast/          # Notification system
+│   │   ├── services/
+│   │   │   ├── auth.service.ts # Authentication management
+│   │   │   ├── socket.service.ts # Socket.IO communication
+│   │   │   └── toast.service.ts # Notification system
+│   │   ├── guards/
+│   │   │   └── auth.guard.ts   # Route protection
+│   │   └── app.routes.ts       # Application routing
+│   └── ...
+├── backend/                    # Node.js/Express Backend
 │   ├── src/
-│   │   ├── server.js       # Main server file
-│   │   └── config/
-│   │       ├── redis.js    # Redis configuration & pub/sub
-│   │       ├── socket.js   # Socket.IO event handlers
-│   │       └── database.js # PostgreSQL configuration
-│   ├── package.json
-│   └── .env                # Environment variables
-├── frontend/               # Angular 18+ application
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── components/
-│   │   │   │   └── chat/   # Main chat component
-│   │   │   └── services/
-│   │   │       └── socket.service.ts
-│   │   └── ...
-│   ├── package.json
-│   └── angular.json
+│   │   ├── controllers/        # API route handlers
+│   │   ├── middleware/         # Authentication middleware
+│   │   ├── models/            # Database models
+│   │   ├── routes/            # API routes
+│   │   ├── socket/            # Socket.IO handlers
+│   │   ├── types/             # TypeScript interfaces
+│   │   └── utils/             # Utility functions
+│   ├── database/              # Database schema and seeds
+│   └── ...
 └── README.md
 ```
 
-## ✨ Features
+## 🚀 Features
 
-### Backend Features
-- **Real-time Communication**: Socket.IO with WebSocket and polling fallback
-- **Redis Pub/Sub**: Stable socket connections with Redis for clustering
-- **PostgreSQL Database**: User management, rooms, and message history
-- **Authentication**: JWT-based user authentication
-- **Room Management**: Create, join, and leave chat rooms
-- **Private Messaging**: Direct messages between users
-- **Typing Indicators**: Real-time typing notifications
-- **Connection Health**: Ping/pong for connection monitoring
-- **Graceful Shutdown**: Proper cleanup on server shutdown
+### **Authentication System**
+- ✅ User registration and login
+- ✅ JWT token-based authentication
+- ✅ Secure password hashing with bcrypt
+- ✅ Route protection with guards
+- ✅ Automatic token refresh
 
-### Frontend Features
-- **Angular 18+**: Modern Angular with standalone components
-- **Reactive UI**: RxJS streams for real-time updates
-- **Beautiful Design**: Modern, responsive Material Design-inspired UI
-- **Multiple Chat Modes**: Public chat, private messages, and rooms
-- **Real-time Notifications**: Toast notifications for events
-- **Typing Indicators**: Visual typing indicators
-- **User Management**: Online users list and status
-- **Room Management**: Create and manage chat rooms
-- **Message History**: Scrollable message history
-- **Responsive Design**: Mobile-friendly interface
+### **Real-time Chat**
+- ✅ General chat room (public)
+- ✅ Private messaging
+- ✅ Custom chat rooms
+- ✅ User presence indicators
+- ✅ Real-time message delivery
+- ✅ Auto-join general chat on login
 
-## 🛠️ Prerequisites
+### **User Interface**
+- ✅ Modern, responsive design
+- ✅ Clean navigation with tabs
+- ✅ Professional authentication pages
+- ✅ User-friendly home dashboard
+- ✅ Comprehensive profile management
 
-- **Node.js** (v18 or higher)
-- **npm** or **yarn**
-- **PostgreSQL** (v13 or higher)
-- **Redis** (v6 or higher)
+### **Notification System**
+- ✅ Toast notifications with auto-dismiss
+- ✅ User join/leave notifications
+- ✅ Message notifications
+- ✅ Error and success feedback
 
-## 🚀 Quick Start
+## 🛠️ Installation & Setup
 
-### 1. Clone and Setup
+### Prerequisites
+- Node.js (v18 or higher)
+- PostgreSQL (v12 or higher)
+- npm or yarn
 
+### 1. Clone the Repository
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd Project
-
-# Install backend dependencies
-cd backend
-npm install
-
-# Install frontend dependencies
-cd ../frontend
-npm install
 ```
 
 ### 2. Database Setup
-
 ```bash
-# Start PostgreSQL service
-sudo systemctl start postgresql
+# Create PostgreSQL database
+createdb chat_app
 
-# Create database (replace with your credentials)
-createdb socket_app
+# Run schema
+psql -d chat_app -f backend/database/schema.sql
 
-# The application will automatically create tables on first run
+# Run seed data
+psql -d chat_app -f backend/database/seed.sql
 ```
 
-### 3. Redis Setup
-
+### 3. Backend Setup
 ```bash
-# Start Redis service
-sudo systemctl start redis
-
-# Or using Docker
-docker run -d -p 6379:6379 redis:alpine
-```
-
-### 4. Environment Configuration
-
-```bash
-# Copy environment file
 cd backend
+npm install
+
+# Create .env file
 cp .env.example .env
+# Edit .env with your database credentials
 
-# Edit .env with your configuration
-# Update database credentials, Redis settings, etc.
-```
-
-### 5. Run the Application
-
-```bash
-# Terminal 1: Start backend server
-cd backend
+# Start development server
 npm run dev
-
-# Terminal 2: Start frontend development server
-cd frontend
-ng serve
 ```
 
-### 6. Access the Application
-
-- **Frontend**: http://localhost:4200
-- **Backend API**: http://localhost:3000
-- **Health Check**: http://localhost:3000/health
-
-## 🔧 Configuration
-
-### Backend Configuration (.env)
-
-```env
-# Server Configuration
-PORT=3000
-NODE_ENV=development
-
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=socket_app
-DB_USER=postgres
-DB_PASSWORD=your_password
-
-# Redis Configuration
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-# JWT Configuration
-JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRES_IN=24h
-
-# CORS Configuration
-ALLOWED_ORIGINS=http://localhost:4200
-
-# Socket.IO Configuration
-SOCKET_ORIGINS=http://localhost:4200
-```
-
-### Frontend Configuration
-
-The frontend automatically connects to the backend at `http://localhost:3000`. To change this, update the `SERVER_URL` in `src/app/services/socket.service.ts`.
-
-## 🏃‍♂️ Running in Production
-
-### Backend Production
-
+### 4. Frontend Setup
 ```bash
-cd backend
+cd frontend
+npm install
+
+# Start development server
 npm start
 ```
 
-### Frontend Production
+## 🔧 Environment Variables
 
-```bash
-cd frontend
-ng build --prod
-# Serve the dist/ folder with your preferred web server
+Create a `.env` file in the backend directory:
+
+```env
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/chat_app
+
+# JWT
+JWT_SECRET=your-super-secret-jwt-key-here
+JWT_REFRESH_SECRET=your-refresh-secret-here
+
+# Server
+PORT=3001
+NODE_ENV=development
+
+# CORS
+FRONTEND_URL=http://localhost:4200
 ```
 
-## 🧪 Testing
+## 📱 Usage
 
-### Backend Testing
+### 1. **Authentication**
+- Navigate to `/auth` to register or login
+- Valid email and password required
+- Automatic redirect to home after successful authentication
 
-```bash
-cd backend
-npm test
-```
+### 2. **Home Dashboard**
+- Overview of online users
+- Quick access to chat and profile
+- Feature highlights and navigation
 
-### Frontend Testing
+### 3. **Chat Interface**
+- **General Chat**: Public room for all users
+- **Private Messages**: Direct messaging with other users
+- **Rooms**: Create and join custom chat rooms
+- **Friends**: Friend management (coming soon)
 
-```bash
-cd frontend
-ng test
-```
-
-## 📡 API Documentation
-
-### Socket.IO Events
-
-#### Client to Server Events
-
-- `authenticate`: User authentication
-- `join_room`: Join a chat room
-- `leave_room`: Leave a chat room
-- `private_message`: Send private message
-- `room_message`: Send room message
-- `typing_start`: Start typing indicator
-- `typing_stop`: Stop typing indicator
-- `get_online_users`: Get list of online users
-- `get_active_rooms`: Get list of active rooms
-- `ping`: Connection health check
-
-#### Server to Client Events
-
-- `authenticated`: Authentication success
-- `authentication_error`: Authentication failed
-- `online_users`: List of online users
-- `active_rooms`: List of active rooms
-- `private_message`: Received private message
-- `room_message`: Received room message
-- `user_online`: User came online
-- `user_offline`: User went offline
-- `user_typing`: User typing indicator
-- `room_joined`: Successfully joined room
-- `room_left`: Successfully left room
-- `notification`: General notification
-- `error`: Error message
-- `pong`: Health check response
-
-### REST API Endpoints
-
-- `GET /`: Server status
-- `GET /health`: Health check
+### 4. **Profile Management**
+- Edit username, email, and display name
+- View account information
+- Logout functionality
 
 ## 🔐 Security Features
 
-- **CORS Protection**: Configurable CORS origins
-- **Helmet**: Security headers
-- **Input Validation**: Sanitized user inputs
-- **Rate Limiting**: Built-in rate limiting
-- **JWT Authentication**: Secure user authentication
-- **SQL Injection Protection**: Parameterized queries
+- **JWT Authentication**: Secure token-based auth
+- **Password Hashing**: bcrypt for password security
+- **Route Protection**: Guards prevent unauthorized access
+- **Input Validation**: Form validation on frontend and backend
+- **SQL Injection Prevention**: Parameterized queries
+- **CORS Configuration**: Proper cross-origin setup
 
 ## 🎨 UI/UX Features
 
-- **Modern Design**: Material Design-inspired interface
-- **Dark/Light Theme**: Responsive color scheme
-- **Emoji Support**: Full emoji support in messages
-- **File Upload**: Image and file sharing (future feature)
-- **Message Reactions**: React to messages (future feature)
-- **Message Threading**: Threaded conversations (future feature)
+- **Modern Design**: Clean, professional interface
+- **Responsive Layout**: Works on desktop and mobile
+- **Loading States**: Proper loading indicators
+- **Error Handling**: User-friendly error messages
+- **Toast Notifications**: Non-intrusive notifications
+- **Real-time Updates**: Live user presence and messages
 
-## 🚀 Deployment
+## 🔄 API Endpoints
 
-### Docker Deployment
+### Authentication
+- `POST /api/v1/auth/register` - User registration
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/logout` - User logout
+- `POST /api/v1/auth/refresh` - Token refresh
 
-```bash
-# Backend Dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-EXPOSE 3000
-CMD ["npm", "start"]
+### Health Checks
+- `GET /health` - Basic health check
+- `GET /health/db` - Database health check
 
-# Frontend Dockerfile
-FROM node:18-alpine as builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN ng build --prod
+## 🔌 Socket.IO Events
 
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
+### Client → Server
+- `get_general_messages` - Fetch general chat messages
+- `send_general_message` - Send message to general chat
+- `get_online_users` - Get list of online users
+- `get_user_rooms` - Get user's rooms
+- `get_public_rooms` - Get public rooms
+- `create_room` - Create new room
+- `join_room` - Join a room
+- `leave_room` - Leave a room
 
-### Docker Compose
+### Server → Client
+- `general_messages` - General chat messages
+- `general_message` - New general message
+- `online_users` - Online users list
+- `user_joined` - User joined notification
+- `user_left` - User left notification
+- `user_rooms` - User's rooms
+- `public_rooms` - Public rooms list
+- `room_created` - Room creation confirmation
 
-```yaml
-version: '3.8'
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-    depends_on:
-      - postgres
-      - redis
-  
-  frontend:
-    build: ./frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-  
-  postgres:
-    image: postgres:13
-    environment:
-      - POSTGRES_DB=socket_app
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-  
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
+## 🚧 Planned Features
 
-volumes:
-  postgres_data:
-```
+- [ ] File upload and sharing
+- [ ] Voice/video calling
+- [ ] Message search and history
+- [ ] User profiles with avatars
+- [ ] Advanced room management
+- [ ] Message reactions and emojis
+- [ ] Push notifications
+- [ ] Dark mode theme
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
-## 🙏 Acknowledgments
+## 🆘 Support
 
-- **Socket.IO** for real-time communication
-- **Redis** for pub/sub messaging
-- **PostgreSQL** for reliable data storage
-- **Angular** for the modern frontend framework
-- **Express.js** for the backend framework
-
-## 📞 Support
-
-For support, email your-email@example.com or create an issue in the repository.
+For issues and questions:
+1. Check the troubleshooting section
+2. Create an issue in the repository
+3. Contact the development team
 
 ---
 
-**Happy Chatting! 🎉** 
+Built with ❤️ using Angular 18, Node.js, and Socket.IO 

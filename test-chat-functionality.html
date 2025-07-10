@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Functionality Test</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 3px; }
+        button { margin: 5px; padding: 10px; }
+        input { margin: 5px; padding: 8px; width: 200px; }
+        #messages { max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Chat Application End-to-End Test</h1>
+    
+    <div class="test-section">
+        <h2>🔐 Step 1: Authentication Test</h2>
+        <div>
+            <input type="email" id="email" placeholder="Email" value="demo@example.com">
+            <input type="password" id="password" placeholder="Password" value="demo123">
+            <button onclick="testLogin()">Login</button>
+            <button onclick="testRegister()">Register New User</button>
+        </div>
+        <div id="auth-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🌐 Step 2: General Chat Test</h2>
+        <div>
+            <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+            <button onclick="sendMessage()" disabled id="sendBtn">Send</button>
+            <button onclick="loadGeneralChat()">Load General Chat</button>
+        </div>
+        <div id="messages"></div>
+        <div id="general-chat-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>👥 Step 3: User Search Test</h2>
+        <div>
+            <input type="text" id="searchQuery" placeholder="Search for users...">
+            <button onclick="searchUsers()">Search Users</button>
+        </div>
+        <div id="search-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🏠 Step 4: Room Creation Test</h2>
+        <div>
+            <input type="text" id="roomName" placeholder="Room name">
+            <input type="text" id="roomDescription" placeholder="Room description">
+            <button onclick="createRoom()">Create Room</button>
+        </div>
+        <div id="room-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Test Results</h2>
+        <div id="test-log" class="log"></div>
+    </div>
+
+    <script>
+        let socket = null;
+        let authToken = null;
+        let currentUser = null;
+        let testResults = {
+            auth: false,
+            generalChat: false,
+            userSearch: false,
+            roomCreation: false
+        };
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('test-log');
+            logDiv.innerHTML += `<div class="${type}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            log('🔐 Testing login...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    authToken = data.data.token;
+                    currentUser = data.data.user;
+                    testResults.auth = true;
+                    
+                    document.getElementById('auth-result').innerHTML = 
+                        `<div class="success">✅ Login successful! User: ${currentUser.displayName || currentUser.username}</div>`;
+                    
+                    log(`✅ Authentication successful for ${currentUser.email}`, 'success');
+                    
+                    // Connect Socket.IO
+                    connectSocket();
+                } else {
+                    document.getElementById('auth-result').innerHTML = 
+                        `<div class="error">❌ Login failed: ${data.message}</div>`;
+                    log(`❌ Authentication failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                document.getElementById('auth-result').innerHTML = 
+                    `<div class="error">❌ Network error: ${error.message}</div>`;
+                log(`❌ Network error during authentication: ${error.message}`, 'error');
+            }
+        }
+
+        async function testRegister() {
+            const email = 'test' + Date.now() + '@example.com';
+            const password = 'password123';
+            const username = 'testuser' + Date.now();
+            
+            log('🔐 Testing registration...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/v1/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username, 
+                        email, 
+                        password,
+                        displayName: 'Test User ' + Date.now()
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    document.getElementById('email').value = email;
+                    document.getElementById('password').value = password;
+                    
+                    document.getElementById('auth-result').innerHTML = 
+                        `<div class="success">✅ Registration successful! Auto-filled login form. Click Login to continue.</div>`;
+                    
+                    log(`✅ Registration successful for ${email}`, 'success');
+                } else {
+                    document.getElementById('auth-result').innerHTML = 
+                        `<div class="error">❌ Registration failed: ${data.message}</div>`;
+                    log(`❌ Registration failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                document.getElementById('auth-result').innerHTML = 
+                    `<div class="error">❌ Network error: ${error.message}</div>`;
+                log(`❌ Network error during registration: ${error.message}`, 'error');
+            }
+        }
+
+        function connectSocket() {
+            if (!authToken) {
+                log('❌ No auth token available for Socket connection', 'error');
+                return;
+            }
+
+            log('🔌 Connecting to Socket.IO server...', 'info');
+            
+            socket = io('http://localhost:3001', {
+                auth: { token: authToken },
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                log('✅ Socket.IO connected successfully', 'success');
+                document.getElementById('messageInput').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`❌ Socket.IO connection error: ${error.message}`, 'error');
+            });
+
+            socket.on('general_message', (message) => {
+                log(`💬 Received general message: ${message.content}`, 'info');
+                displayMessage(message);
+            });
+
+            socket.on('general_messages', (data) => {
+                log(`📜 Received general messages: ${data.messages?.length || 0} messages`, 'info');
+                testResults.generalChat = true;
+                document.getElementById('general-chat-result').innerHTML = 
+                    '<div class="success">✅ General chat loading successful!</div>';
+            });
+
+            socket.on('room_created', (data) => {
+                log(`🏠 Room created: ${data.room?.name}`, 'success');
+                testResults.roomCreation = true;
+                document.getElementById('room-result').innerHTML = 
+                    `<div class="success">✅ Room "${data.room?.name}" created successfully!</div>`;
+            });
+
+            socket.on('disconnect', () => {
+                log('🔌 Socket.IO disconnected', 'warning');
+            });
+        }
+
+        function loadGeneralChat() {
+            if (!socket) {
+                log('❌ Socket not connected', 'error');
+                return;
+            }
+
+            log('🌐 Loading general chat...', 'info');
+            socket.emit('get_general_messages', { limit: 50, offset: 0 });
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const content = messageInput.value.trim();
+            
+            if (!content || !socket) return;
+
+            log(`💬 Sending message: ${content}`, 'info');
+            socket.emit('send_general_message', { content });
+            messageInput.value = '';
+        }
+
+        function displayMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.innerHTML = `
+                <strong>${message.sender?.displayName || message.sender?.username || 'Unknown'}:</strong> 
+                ${message.content} 
+                <small>(${new Date(message.timestamp).toLocaleTimeString()})</small>
+            `;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function searchUsers() {
+            const query = document.getElementById('searchQuery').value.trim();
+            
+            if (!query || !authToken) {
+                log('❌ No search query or auth token', 'error');
+                return;
+            }
+
+            log(`🔍 Searching for users: ${query}`, 'info');
+            
+            try {
+                const response = await fetch(`http://localhost:3001/api/v1/users/search?q=${encodeURIComponent(query)}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    testResults.userSearch = true;
+                    document.getElementById('search-result').innerHTML = 
+                        `<div class="success">✅ Search successful! Found ${data.data?.length || 0} users</div>`;
+                    log(`✅ User search successful: ${data.data?.length || 0} users found`, 'success');
+                } else {
+                    document.getElementById('search-result').innerHTML = 
+                        `<div class="error">❌ Search failed: ${data.message}</div>`;
+                    log(`❌ User search failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                document.getElementById('search-result').innerHTML = 
+                    `<div class="error">❌ Network error: ${error.message}</div>`;
+                log(`❌ Search network error: ${error.message}`, 'error');
+            }
+        }
+
+        function createRoom() {
+            const name = document.getElementById('roomName').value.trim();
+            const description = document.getElementById('roomDescription').value.trim();
+            
+            if (!name || !socket) {
+                log('❌ No room name or socket connection', 'error');
+                return;
+            }
+
+            log(`🏠 Creating room: ${name}`, 'info');
+            socket.emit('create_room', { 
+                name, 
+                description, 
+                roomType: 'private' 
+            });
+        }
+
+        // Enable Enter key for message input
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Auto-run status check
+        setInterval(() => {
+            const total = Object.keys(testResults).length;
+            const passed = Object.values(testResults).filter(Boolean).length;
+            
+            if (passed === total) {
+                log(`🎉 All tests passed! (${passed}/${total})`, 'success');
+            } else if (passed > 0) {
+                log(`⚠️ Partial success: ${passed}/${total} tests passed`, 'warning');
+            }
+        }, 10000);
+
+        log('🚀 Test page loaded. Start with authentication test.', 'info');
+    </script>
+</body>
+</html> 

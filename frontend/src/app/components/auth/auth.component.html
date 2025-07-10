@@ -1,0 +1,97 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1 class="auth-title">{{ authMode === 'login' ? 'Welcome Back' : 'Create Account' }}</h1>
+      <p class="auth-subtitle">
+        {{ authMode === 'login' ? 'Sign in to your account' : 'Join our community today' }}
+      </p>
+    </div>
+
+    <form [formGroup]="authForm" (ngSubmit)="onSubmit()" class="auth-form">
+      <!-- Username field (only for registration) -->
+      <div class="form-group" *ngIf="authMode === 'register'">
+        <label for="username">Username</label>
+        <input 
+          type="text" 
+          id="username" 
+          formControlName="username"
+          [class.error]="hasError('username', 'required') || hasError('username', 'minlength')"
+          placeholder="Enter your username"
+        />
+        <div class="error-message" *ngIf="hasError('username', 'required') || hasError('username', 'minlength')">
+          {{ getError('username') }}
+        </div>
+      </div>
+
+      <!-- Email field -->
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input 
+          type="email" 
+          id="email" 
+          formControlName="email"
+          [class.error]="hasError('email', 'required') || hasError('email', 'email')"
+          placeholder="Enter your email"
+        />
+        <div class="error-message" *ngIf="hasError('email', 'required') || hasError('email', 'email')">
+          {{ getError('email') }}
+        </div>
+      </div>
+
+      <!-- Password field -->
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          formControlName="password"
+          [class.error]="hasError('password', 'required') || hasError('password', 'minlength')"
+          placeholder="Enter your password"
+        />
+        <div class="error-message" *ngIf="hasError('password', 'required') || hasError('password', 'minlength')">
+          {{ getError('password') }}
+        </div>
+      </div>
+
+      <!-- Display Name field (only for registration) -->
+      <div class="form-group" *ngIf="authMode === 'register'">
+        <label for="displayName">Display Name (Optional)</label>
+        <input 
+          type="text" 
+          id="displayName" 
+          formControlName="displayName"
+          placeholder="Enter your display name"
+        />
+      </div>
+
+      <!-- Submit button -->
+      <button 
+        type="submit" 
+        class="auth-button"
+        [class.loading]="authLoading"
+        [disabled]="authLoading"
+      >
+        <span *ngIf="!authLoading">{{ authMode === 'login' ? 'Sign In' : 'Create Account' }}</span>
+        <span *ngIf="authLoading">
+          <i class="loading-spinner"></i>
+          {{ authMode === 'login' ? 'Signing In...' : 'Creating Account...' }}
+        </span>
+      </button>
+
+      <!-- Toggle auth mode -->
+      <div class="auth-toggle">
+        <p>
+          {{ authMode === 'login' ? "Don't have an account?" : "Already have an account?" }}
+          <button 
+            type="button" 
+            class="toggle-button"
+            (click)="toggleAuthMode()"
+            [disabled]="authLoading"
+          >
+            {{ authMode === 'login' ? 'Sign Up' : 'Sign In' }}
+          </button>
+        </p>
+      </div>
+    </form>
+  </div>
+</div> 

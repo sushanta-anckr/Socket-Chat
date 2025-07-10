@@ -1,0 +1,84 @@
+<div class="home-container">
+  <!-- Header -->
+  <header class="home-header">
+    <div class="header-content">
+      <div class="logo-section">
+        <h1 class="app-title">💬 ChatApp</h1>
+      </div>
+      <div class="user-section">
+        <div class="user-info" *ngIf="currentUser">
+          <span class="user-name">{{ currentUser.displayName || currentUser.username }}</span>
+          <button class="logout-btn" (click)="logout()">Logout</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="home-main">
+    <div class="welcome-section">
+      <div class="welcome-content">
+        <h2 class="welcome-title">Welcome back, {{ currentUser?.displayName || currentUser?.username }}!</h2>
+        <p class="welcome-subtitle">Ready to connect with your friends and community?</p>
+        
+        <div class="quick-actions">
+          <button class="action-btn primary" (click)="goToChat()">
+            <i class="icon">💬</i>
+            <span>Join Chat</span>
+          </button>
+          <button class="action-btn secondary" (click)="goToProfile()">
+            <i class="icon">👤</i>
+            <span>My Profile</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Online Users Section -->
+    <div class="online-users-section">
+      <h3 class="section-title">Online Users</h3>
+      <div class="users-grid" *ngIf="onlineUsers.length > 0">
+        <div class="user-card" *ngFor="let user of onlineUsers">
+          <div class="user-avatar">
+            <span class="avatar-initial">{{ user.username?.charAt(0)?.toUpperCase() }}</span>
+            <div class="online-indicator"></div>
+          </div>
+          <div class="user-details">
+            <p class="user-name">{{ user.displayName || user.username }}</p>
+            <p class="user-status">Online</p>
+          </div>
+        </div>
+      </div>
+      <div class="no-users" *ngIf="onlineUsers.length === 0">
+        <p>No other users online right now</p>
+      </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="features-section">
+      <h3 class="section-title">Features</h3>
+      <div class="features-grid">
+        <div class="feature-card">
+          <i class="feature-icon">💬</i>
+          <h4>General Chat</h4>
+          <p>Join the community conversation</p>
+        </div>
+        <div class="feature-card">
+          <i class="feature-icon">🔒</i>
+          <h4>Private Messages</h4>
+          <p>Send direct messages to friends</p>
+        </div>
+        <div class="feature-card">
+          <i class="feature-icon">👥</i>
+          <h4>Create Rooms</h4>
+          <p>Start your own chat rooms</p>
+        </div>
+        <div class="feature-card">
+          <i class="feature-icon">➕</i>
+          <h4>Add Friends</h4>
+          <p>Connect with other users</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div> 

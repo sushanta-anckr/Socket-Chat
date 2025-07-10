@@ -1,0 +1,20 @@
+nohup: ignoring input
+
+> chat-backend@1.0.0 dev
+> ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/server.ts
+
+[INFO] 13:32:01 ts-node-dev ver. 2.0.0 (using ts-node ver. 10.9.2, typescript ver. 5.8.3)
+2025-07-10 13:32:02:322 [32minfo[39m: [32mMiddleware setup completed[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32mRoutes setup completed[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32mSocket.IO setup completed[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32mError handling setup completed[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32mNew database client connected[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32mDatabase connected successfully[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32mDatabase connected successfully[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32m🚀 Server running on port 3001[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32m🌍 Environment: development[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32m📡 Socket.IO server ready[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32m🔒 CORS enabled for: http://localhost:4200[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32m🗄️  Database: chat_app on localhost:5432[39m
+2025-07-10 13:32:02:322 [32minfo[39m: [32m📊 DB Connections: 1 total, 1 idle[39m
+2025-07-10 13:32:41:3241 [32minfo[39m: [32mUser registered successfully: test@example.com[39m

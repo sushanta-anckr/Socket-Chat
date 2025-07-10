@@ -1,0 +1,54 @@
+<div class="general-chat">
+  <!-- Chat Header -->
+  <div class="chat-header">
+    <h3>💬 General Chat</h3>
+    <p>Welcome to the general chat room. Everyone can see messages here.</p>
+  </div>
+
+  <!-- Messages Area -->
+  <div class="messages-container" *ngIf="!isLoading">
+    <div class="message-wrapper" *ngFor="let message of messages">
+      <div class="message" [class.own]="message.isOwn">
+        <div class="message-avatar" *ngIf="!message.isOwn">
+          <span class="avatar-initial">{{ getInitials(message.sender.username) }}</span>
+        </div>
+        <div class="message-content">
+          <div class="message-header" *ngIf="!message.isOwn">
+            <span class="sender-name">{{ message.sender.displayName || message.sender.username }}</span>
+            <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+          </div>
+          <div class="message-text">{{ message.content }}</div>
+          <div class="message-time own-time" *ngIf="message.isOwn">
+            {{ formatTime(message.timestamp) }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading messages...</p>
+  </div>
+
+  <!-- Input Area -->
+  <div class="input-area">
+    <div class="input-container">
+      <input 
+        type="text" 
+        [(ngModel)]="messageInput"
+        (keyup.enter)="sendMessage()"
+        placeholder="Type your message..."
+        class="message-input"
+      />
+      <button 
+        (click)="sendMessage()"
+        class="send-button"
+        [disabled]="!messageInput.trim()"
+      >
+        Send
+      </button>
+    </div>
+  </div>
+</div> 
